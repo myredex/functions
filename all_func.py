@@ -70,4 +70,5 @@ def get_class_names_from_folder(directory):
   import numpy as np
   data_dir = pathlib.Path(directory)
   class_names = np.array(sorted([item.name for item in data_dir.glob("*")])) # Created a list of class names 
+  return class_names
   print(class_names)
