@@ -60,14 +60,14 @@ def split_dir_to_train_test_val(directory = "images/",
       print(f"Folder {folder}. Validation data copied. {len(val_files)} files")
       
      
-#################################################################
 
 
 def get_class_names_from_folder(directory):
   """
   Get the classnames from train folder for example
   """
- 
-  data_dir = 1
-  class_names = 2 
+  import pathlib
+  import numpy as np
+  data_dir = pathlib.Path(directory)
+  class_names = np.array(sorted([item.name for item in data_dir.glob("*")])) # Created a list of class names 
   print(class_names)
