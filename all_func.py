@@ -67,8 +67,7 @@ def get_class_names_from_folder(directory):
   """
   Get the classnames from train folder for example
   """
-  import pathlib
-  import numpy as np
-  data_dir = pathlib.Path(directory)
-  class_names = np.array(sorted([item.name for item in data_dir.glob("*")])) # Created a list of class names 
+ 
+  data_dir = 1
+  class_names = 2 
   print(class_names)
