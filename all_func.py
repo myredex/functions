@@ -1,12 +1,54 @@
-# split_dir_to_train_test_val
+# Work with Images
+# =========================================
+# plot_dcm_image
+
+
+# Work with Files
+# =========================================
+# unzip_data - Unzips archive
+# walk_through_dir - Counts files and subdirs in directory
+# split_dir_to_train_test_val - Splits one folder with images into three subfolders for tran, test and val
+
+# Plots of curves
+# =========================================
 # get_class_names_from_folder
 # make_confusion_matrix
 # pred_and_plot
 # create_tensorboard_callback
 # plot_loss_curves
 # compare_historys
-# unzip_data
-# walk_through_dir
+
+
+def plot_dcm_image(image_path:str, fig_size=(3, 3)):
+    """
+    Function plots DCM image.
+    
+    Parameters:
+    image_path (str): Path of the image to plot.
+    fig_size (tupple): Size of the figure.
+    
+    Returns: 
+    None: Visualises the image.
+    
+    Example: 
+    >>> plot_dcm_image(image_path=".../path/1.dcm", fig_size=(2,2))
+    """
+    
+    import matplotlib.pyplot as plt
+    import pydicom
+
+    # load pydicom file
+    pydicom_image = pydicom.dcmread(image_path)
+    image = pydicom_image.pixel_array
+    
+    # Plot image
+    plt.figure(figsize=fig_size)
+    plt.imshow(image, cmap=plt.cm.gray)
+    plt.show()
+    
+    # Print info
+    print(f"Image size: {image.shape}")
+    print(f"Image url: {image_path}")
 
 
 import tensorflow as tf
