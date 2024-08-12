@@ -1,5 +1,5 @@
 # Data Preparation
-
+# =========================================
 ## calculate_mean_std - calculates mean and std for the images in folder
 
 def calculate_mean_std(images_dir:str):
