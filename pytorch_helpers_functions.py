@@ -19,6 +19,7 @@ def calculate_mean_std(images_dir:str):
 
     from torchvision import datasets
     from torch.utils.data import DataLoader
+    from torchvision import datasets, transforms
     import numpy as np
 
     transform = transforms.Compose([transforms.Resize((128, 128)),
