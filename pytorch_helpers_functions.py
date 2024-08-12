@@ -47,5 +47,3 @@ def calculate_mean_std(images_dir:str):
     std /= total_images
     
     return mean, std
-
-mean, std = calculate_mean_std('images')
