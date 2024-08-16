@@ -1,7 +1,11 @@
 import numpy as np
+import torch
+import torch.nn as nn
 from torchvision import datasets
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
+from torchmetrics import F1Score
+import matplotlib.pyplot as plt
 
 
 # Data Preparation
@@ -55,12 +59,14 @@ def calculate_mean_std(images_dir:str):
     
     return mean, std
 
+
 # ==============================================================
 def train_step(model: torch.nn.Module,
                dataloader: torch.utils.data.DataLoader,
                loss_fn: torch.nn.Module,
                optimizer: torch.optim.Optimizer,
-               device: torch.device):
+               device: torch.device,
+               num_classes: int):
 
     """
     Trains PyTorch model for one epoch.
@@ -74,6 +80,11 @@ def train_step(model: torch.nn.Module,
     A tuple of training loss and accuracy
     """
     train_loss, train_acc, train_f1 = 0, 0, 0
+    # Initialize F1 metric
+    f1_metric = F1Score(num_classes=num_classes, 
+                        average='weighted', 
+                        task='multiclass').to(device)  # 'macro', 'micro', 'weighted', etc.
+
     # Turn on train mode
     model.train()
     for batch, (X, y) in enumerate(dataloader):
@@ -105,11 +116,14 @@ def train_step(model: torch.nn.Module,
     # Choose what to return
     return train_loss, train_f1
 
+
+
 # ==============================================================
 def val_step(model: torch.nn.Module,
              dataloader: torch.utils.data.DataLoader,
              loss_fn: torch.nn.Module,
-             device: torch.device):
+             device: torch.device,
+             num_classes: int):
 
     """
     Performs PyTorch model's validation during one epoch.
@@ -123,6 +137,10 @@ def val_step(model: torch.nn.Module,
     A tuple of val loss and accuracy
     """
     val_loss, val_acc, val_f1 = 0, 0, 0
+    # Initialize F1 metric
+    f1_metric = F1Score(num_classes=num_classes, 
+                        average='weighted', 
+                        task='multiclass').to(device)  # 'macro', 'micro', 'weighted', etc.
     # Turn on eval mode
     model.eval()
 
@@ -159,7 +177,8 @@ def train_model(model: torch.nn.Module,
                 optimizer: torch.optim.Optimizer,
                 loss_fn: torch.nn.Module,
                 epochs: int,
-                device: torch.device):
+                device: torch.device,
+                num_classes: int):
 
     """
     Trains PyTorch model for N epochs
@@ -179,15 +198,17 @@ def train_model(model: torch.nn.Module,
                                            dataloader=train_dataloader,
                                            loss_fn=loss_fn,
                                            optimizer=optimizer,
-                                           device=device)
+                                           device=device,
+                                            num_classes=num_classes)
         train_loss.append(train_loss_ep)
         train_f1.append(train_f1_ep)
 
         # Run validation and collect metrics in list
         val_loss_ep, val_f1_ep = val_step(model=model,
-                                     dataloader=val_dataloader,
-                                     loss_fn=loss_fn,
-                                     device=device)
+                                         dataloader=val_dataloader,
+                                         loss_fn=loss_fn,
+                                         device=device,
+                                         num_classes=num_classes)
         val_loss.append(val_loss_ep)
         val_f1.append(val_f1_ep)
 
@@ -198,3 +219,25 @@ def train_model(model: torch.nn.Module,
               Val   f1: {val_f1_ep:.5f}""")
 
     return train_f1, val_f1, train_loss, val_loss
+
+
+# ==============================================================
+def plot_loss_curves(train_metric, val_metric, train_loss, val_loss):
+    """
+    Plots metric and loss on two plots
+    """
+    
+    plt.figure(figsize=(10, 5))
+    plt.subplot(1, 2, 1)
+    plt.plot(train_metric, c="green", label="train_metric")
+    plt.plot(val_metric, c="green", linestyle="dashed", label="val_metric")
+    plt.title("Metric")
+    plt.legend()
+
+    plt.subplot(1, 2, 2)
+
+    plt.plot(train_loss, c="blue", label="train_loss")
+    plt.plot(val_loss, c="blue", linestyle="dashed", label="val_loss")
+    plt.legend()
+    plt.title("Loss")
+    plt.show()
