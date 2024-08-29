@@ -65,37 +65,38 @@ def train_step(model: torch.nn.Module,
                dataloader: torch.utils.data.DataLoader,
                loss_fn: torch.nn.Module,
                optimizer: torch.optim.Optimizer,
-               device: torch.device,
-               num_classes: int):
+               device: torch.device):
 
     """
     Trains PyTorch model for one epoch.
     Args:
-    model: PyTorch model
-    dataloader: A DataLoader instance
-    loss_fn: Loss function
-    optimizer: Optimizer
+        model: PyTorch model
+        dataloader: A DataLoader instance
+        metric_function: for example accuracy, f1, etc. or custom 
+        gets y_true and y_pred arrays 
+        loss_fn: Loss function
+        optimizer: Optimizer
 
     Returns:
-    A tuple of training loss and accuracy
+        A tuple of training loss and predictions
     """
-    train_loss, train_acc, train_f1 = 0, 0, 0
-    # Initialize F1 metric
-    f1_metric = F1Score(num_classes=num_classes, 
-                        average='weighted', 
-                        task='multiclass').to(device)  # 'macro', 'micro', 'weighted', etc.
-
+    train_loss = 0
+    
+    y_preds, y_trues = [], []
+    
     # Turn on train mode
     model.train()
-    for batch, (X, y) in enumerate(dataloader):
-
+    for batch, (X, y) in tqdm(enumerate(dataloader)):
+        
         # Send data to device
-        X, y = X.to(device), y.to(device)
+        X, y = X.to(device), y.to(torch.float32).to(device)
 
         # Forward pass
-        y_pred = model(X)
+        y_preds_batch = model(X)
+        
         # Calculate the losss
-        loss = loss_fn(y_pred, y)
+        loss = loss_fn(torch.squeeze(y_preds_batch, dim=1), y)
+        
         train_loss += loss.item()
         # Optimizer zero grad
         optimizer.zero_grad()
@@ -103,18 +104,14 @@ def train_step(model: torch.nn.Module,
         loss.backward()
         # Optimizer step
         optimizer.step()
-
-        # Calculate accuracy
-        y_pred_class = torch.argmax(torch.softmax(y_pred, dim=1), dim=1)
-        train_acc += (y_pred_class == y).sum().item()/len(y_pred)
-        train_f1 += f1_metric(y_pred_class, y)
+        
+        # Collect preds and trues
+        y_trues.extend(y.detach().cpu().numpy())
+        y_preds.extend(torch.squeeze(y_preds_batch, dim=1).detach().cpu().numpy())
 
     train_loss = train_loss / len(dataloader)
-    train_acc = train_acc / len(dataloader)
-    train_f1 = train_f1 / len(dataloader)
 
-    # Choose what to return
-    return train_loss, train_f1
+    return train_loss, np.array(y_preds), np.array(y_trues)
 
 
 
@@ -122,8 +119,7 @@ def train_step(model: torch.nn.Module,
 def val_step(model: torch.nn.Module,
              dataloader: torch.utils.data.DataLoader,
              loss_fn: torch.nn.Module,
-             device: torch.device,
-             num_classes: int):
+             device: torch.device):
 
     """
     Performs PyTorch model's validation during one epoch.
@@ -136,89 +132,134 @@ def val_step(model: torch.nn.Module,
     Returns:
     A tuple of val loss and accuracy
     """
-    val_loss, val_acc, val_f1 = 0, 0, 0
-    # Initialize F1 metric
-    f1_metric = F1Score(num_classes=num_classes, 
-                        average='weighted', 
-                        task='multiclass').to(device)  # 'macro', 'micro', 'weighted', etc.
+    val_loss = 0
+    y_trues, y_preds = [], []
+    
     # Turn on eval mode
     model.eval()
-
+    
     with torch.inference_mode():
 
         for batch, (X, y) in enumerate(dataloader):
 
             # Send data to device
-            X, y = X.to(device), y.to(device)
+            X, y = X.to(device), y.to(torch.float32).to(device)
 
             # Forward pass
-            y_pred = model(X)
+            y_preds_batch = model(X) 
+             
             # Calculate the losss
-            loss = loss_fn(y_pred, y)
+            loss = loss_fn(torch.squeeze(y_preds_batch, dim=1), y)
 
             val_loss += loss.item()
-
-            # Calculate accuracy
-            y_pred_class = torch.argmax(torch.softmax(y_pred, dim=1), dim=1)
-            val_acc += (y_pred_class == y).sum().item()/len(y_pred)
-            val_f1 += f1_metric(y_pred_class, y)
-
+            
+            y_trues.extend(y.detach().cpu().numpy())
+            y_preds.extend(torch.squeeze(y_preds_batch, dim=1).detach().cpu().numpy())
+        
     val_loss = val_loss / len(dataloader)
-    val_acc = val_acc / len(dataloader)
-    val_f1 = val_f1 / len(dataloader)
 
-    # Choose what to return
-    return val_loss, val_f1
+    return val_loss, np.array(y_preds), np.array(y_trues)
+
+# ==============================================================
+
+def get_predictions(model: torch.nn.Module,
+                    dataloader: torch.utils.data.DataLoader,
+                    device: torch.device):
+
+    """
+    Performs PyTorch model's predictions
+    Args:
+        model: PyTorch model
+        dataloader: A DataLoader instance 
+
+    Returns:
+        predictons in np.array
+    """
+    y_preds = []
+    
+    # Turn on eval mode
+    model.eval()
+    
+    with torch.inference_mode():
+
+        for batch, (X) in enumerate(dataloader):
+
+            # Send data to device
+            X = X.to(device)
+
+            # Make predictions
+            y_preds_batch = model(X) 
+            
+            # Put preds into list in np format
+            y_preds.extend(torch.squeeze(y_preds_batch, dim=1).detach().cpu().numpy())
+
+    return np.array(y_preds)
+                 
 
 # ==============================================================
 def train_model(model: torch.nn.Module,
+                metric_function,
                 train_dataloader: torch.utils.data.DataLoader,
                 val_dataloader: torch.utils.data.DataLoader,
                 optimizer: torch.optim.Optimizer,
                 loss_fn: torch.nn.Module,
                 epochs: int,
-                device: torch.device,
-                num_classes: int):
+                device: torch.device):
 
     """
     Trains PyTorch model for N epochs
+    Args: 
+        model: Pytorch model
+        metric_function: Some function that gets y_true and y_pred as input and returns score
+        train_dataloader: Pytorch dataloader
+        val_dataloader: Pytorch validation dataloader
+        optimizer: Pytorch optimizer
+        loss_fn: Loss function
+        epochs: number of epochs to train
+        device: CPU or CUDA
+        
     Returns:
-    Dictionaries of Train Loss, Val Loss, Train Acc, Val Accuracy.
-    If test dataloader in input it also returns final test Loss and Test accuracy
+        Dictionaries of Train Loss, Val Loss, Train Acc, Val Accuracy.
+        If test dataloader in input it also returns final test Loss and Test accuracy
     """
     # Move model to device
     model.to(device)
     print(f"Device: {device}")
 
-    train_f1, val_f1, train_loss, val_loss = [], [], [], []
+    train_metrics, val_metrics, train_loss, val_loss = [], [], [], []
 
-    for epoch in range(epochs):
+    for epoch in tqdm(range(epochs)):
         # Run train and collect results in list
-        train_loss_ep, train_f1_ep = train_step(model=model,
-                                           dataloader=train_dataloader,
-                                           loss_fn=loss_fn,
-                                           optimizer=optimizer,
-                                           device=device,
-                                            num_classes=num_classes)
+        train_loss_ep, train_preds_ep, train_true_labels = train_step(model=model,
+                                                    dataloader=train_dataloader,
+                                                    loss_fn=loss_fn,
+                                                    optimizer=optimizer,
+                                                    device=device)
         train_loss.append(train_loss_ep)
-        train_f1.append(train_f1_ep)
 
-        # Run validation and collect metrics in list
-        val_loss_ep, val_f1_ep = val_step(model=model,
-                                         dataloader=val_dataloader,
-                                         loss_fn=loss_fn,
-                                         device=device,
-                                         num_classes=num_classes)
+        # Run validation and collect preds in list
+        val_loss_ep, val_preds_ep, val_true_labels = val_step(model=model,
+                                              dataloader=val_dataloader,
+                                              loss_fn=loss_fn,
+                                              device=device)
         val_loss.append(val_loss_ep)
-        val_f1.append(val_f1_ep)
-
-        print(f"""Epoch {epoch+1} of {epochs}_ _ _ _ _ _ _ _ _ _
+        
+        # Count metric for epoch
+        train_metric_ep = metric_function(y_true=train_true_labels,
+                                          y_pred=train_preds_ep)
+        val_metric_ep = metric_function(y_true=val_true_labels,
+                                        y_pred=val_preds_ep)
+        
+        train_metrics.append(train_metric_ep)
+        val_metrics.append(val_metric_ep)
+        
+        print(f"""Epoch {epoch+1}_ _ _ _ _ _ _ _ _ _
               Train loss: {train_loss_ep:.5f}
               Val   loss: {val_loss_ep:.5f}
-              Train f1: {train_f1_ep:.5f}
-              Val   f1: {val_f1_ep:.5f}""")
-
-    return train_f1, val_f1, train_loss, val_loss
+              Train metric: {train_metric_ep:.5f}
+              Val   metric: {val_metric_ep:.5f}""")
+    
+    return train_metrics, val_metrics, train_loss, val_loss
 
 
 # ==============================================================
