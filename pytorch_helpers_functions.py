@@ -67,6 +67,10 @@ from sklearn.model_selection import StratifiedShuffleSplit
 from torch.utils.data import Subset
 from collections import Counter
 
+from sklearn.model_selection import StratifiedShuffleSplit
+from torch.utils.data import Subset
+from collections import Counter
+
 def split_pytorch_dataset(dataset:torch.utils.data.Dataset,
                           test_size:float=0.2,
                           seed=42):
@@ -76,9 +80,9 @@ def split_pytorch_dataset(dataset:torch.utils.data.Dataset,
         dataset: pytorch dataset
         test_size: float value to define size of test set
     Returns:
-        two pytorch subsets
+        two pytorch subsets and it's weigts
     Example:
-        train_dataset, test_dataset = split_pytorch_dataset(dataset=dataset, test_size=0.2)
+        train_dataset, test_dataset, train_weights, val_weights = split_pytorch_dataset(dataset=dataset, test_size=0.2)
     """
     # Get targets
     targets = dataset.targets
@@ -98,12 +102,40 @@ def split_pytorch_dataset(dataset:torch.utils.data.Dataset,
     
     train_classes = Counter(train_targets)
     test_classes = Counter(test_targets)
-    print(f"Dataset splitted into:")
+    
+    # Count weights for each class
+    train_weights = {cls: len(train_idx) / count for cls, count in train_classes.items()}
+    test_weights = {cls: len(test_idx) / count for cls, count in test_classes.items()}
+   
+    # Check pos_weight for binary and weights for multiclass
+    if len(train_weights) <= 2:
+        print("Return pos_weight for class 1")
+        train_weights = torch.tensor(train_weights[1], dtype=torch.float32)
+        test_weights = torch.tensor(test_weights[1], dtype=torch.float32)
+        print(f"Weight for pos_weight: train {train_weights}, test {test_weights}")
+        
+    else:
+        print("Retun normalized weights for each class")
+        train_total_weight = sum(train_weights.values())
+        test_total_weight = sum(test_weights.values())
+        
+        # Normalize weights
+        train_weights = {cls: weight / train_total_weight for cls, weight in train_weights.items()}
+        test_weights = {cls: weight / test_total_weight for cls, weight in test_weights.items()}
+        
+        
+        # Conver weights into tensors
+        train_weights = torch.tensor([train_weights[cls] for cls in sorted(train_weights.keys())], dtype=torch.float32)
+        test_weights = torch.tensor([test_weights[cls] for cls in sorted(test_weights.keys())], dtype=torch.float32)
+        print(f"Weight for pos_weight: train {train_weights}, test {test_weights}")
+        
+    print(f"Dataset splitted into")
     print(f"Train dataset contains of: {train_classes}")
     print(f"Test dataset contains of: {test_classes}")
     print(f"Lenth of datasets: {len(train_dataset)}, {len(test_dataset)}")
         
-    return train_dataset, test_dataset
+    return train_dataset, test_dataset, train_weights, test_weights
+                              
 
 # ==============================================================
 def train_step(model: torch.nn.Module,
