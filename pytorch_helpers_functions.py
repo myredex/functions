@@ -2,20 +2,23 @@ import numpy as np
 import torch
 import torch.nn as nn
 from torchvision import datasets
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Subset
 from torchvision import datasets, transforms
-from torchmetrics import F1Score
 import matplotlib.pyplot as plt
+from sklearn.model_selection import StratifiedShuffleSplit
+from collections import Counter
 
 
 # Data Preparation
 # =========================================
 ## calculate_mean_std - calculates mean and std for the images in folder
+## split_pytorch_dataset - splits dataset into two stratified parts
 
 # Model training
 # =========================================
 ## train_step - runs model learning for one epoch
 ## val_step - evaluates model for epoch
+## get_predictions - performs predictions using test_dataloader (for kaggle usage)
 ## train_model - combines previous two ones
 
 def calculate_mean_std(images_dir:str):
@@ -59,6 +62,48 @@ def calculate_mean_std(images_dir:str):
     
     return mean, std
 
+
+from sklearn.model_selection import StratifiedShuffleSplit
+from torch.utils.data import Subset
+from collections import Counter
+
+def split_pytorch_dataset(dataset:torch.utils.data.Dataset,
+                          test_size:float=0.2,
+                          seed=42):
+    """
+    Splits highly unballanced dataset into two parts.
+    Args:
+        dataset: pytorch dataset
+        test_size: float value to define size of test set
+    Returns:
+        two pytorch subsets
+    Example:
+        train_dataset, test_dataset = split_pytorch_dataset(dataset=dataset, test_size=0.2)
+    """
+    # Get targets
+    targets = dataset.targets
+    
+    # Split only once
+    sss = StratifiedShuffleSplit(n_splits=1,
+                                 test_size=test_size,
+                                 random_state=seed)
+    
+    for train_idx, test_idx in sss.split(list(range(len(targets))), targets):
+        train_dataset = Subset(dataset, train_idx)
+        test_dataset = Subset(dataset, test_idx)
+        
+    # Count number of classes in each subset
+    train_targets = [dataset.targets[i] for i in train_idx]
+    test_targets = [dataset.targets[i] for i in test_idx]
+    
+    train_classes = Counter(train_targets)
+    test_classes = Counter(test_targets)
+    print(f"Dataset splitted into:")
+    print(f"Train dataset contains of: {train_classes}")
+    print(f"Test dataset contains of: {test_classes}")
+    print(f"Lenth of datasets: {len(train_dataset)}, {len(test_dataset)}")
+        
+    return train_dataset, test_dataset
 
 # ==============================================================
 def train_step(model: torch.nn.Module,
