@@ -260,7 +260,10 @@ def get_predictions(model: torch.nn.Module,
     with torch.inference_mode():
 
         for batch, (X) in enumerate(dataloader):
-
+            
+            # Check if X is list or not when input contains targets
+            if isinstance(X, list):
+                X = X[0]
             # Send data to device
             X = X.to(device)
 
