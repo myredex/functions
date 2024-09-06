@@ -62,14 +62,14 @@ class CustomColumnTransformer(BaseEstimator, TransformerMixin):
 
             elif self.mode == 'divide':
                 new_column_name = str('divide_' + '_'.join(list_of_columns))
-                dataframe[new_column_name] = X[list_of_columns].iloc[:, 0]
+                dataframe[new_column_name] = X[list_of_columns[0]]
 
                 for col in list_of_columns[1:]:
                     dataframe[new_column_name] /= X[col]
 
             elif self.mode == 'subtract':
                 new_column_name = str('subtract_' + '_'.join(list_of_columns))
-                dataframe[new_column_name] = X[list_of_columns].iloc[:, 0]
+                dataframe[new_column_name] = X[list_of_columns[0]]
 
                 for col in list_of_columns[1:]:
                     dataframe[new_column_name] /= X[col]
