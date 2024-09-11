@@ -2,6 +2,10 @@
 # Content 
 # class image_text_dataset(Dataset):
 
+from PIL import Image
+from torch.utils.data import Dataset
+
+
 class image_text_dataset(Dataset):
     """
     This class creates pytorch dataset from dataframe. Output is Image/Text pair
