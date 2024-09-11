@@ -18,6 +18,9 @@
 # plot_loss_curves
 # compare_historys
 
+import os
+from zipfile import ZipFile
+
 
 def plot_dcm_image(image_path:str, fig_size=(3, 3)):
     """
@@ -51,7 +54,7 @@ def plot_dcm_image(image_path:str, fig_size=(3, 3)):
     print(f"Image url: {image_path}")
 
 
-import tensorflow as tf
+
 def split_dir_to_train_test_val(directory = "images/",
                             train_size = 0.7,
                             test_size = 0.2,
@@ -59,7 +62,7 @@ def split_dir_to_train_test_val(directory = "images/",
   """
   Creates 3 folders for Train, Test and Validation data
   """
-  import os
+  import tensorflow as tf
   import random
   import shutil
 
@@ -356,22 +359,24 @@ def compare_historys(original_history, new_history, initial_epochs=5):
   
 # Create function to unzip a zipfile into current working directory 
 # (since we're going to be downloading and unzipping a few files)
-import zipfile
 
 def unzip_data(filename):
-  """
-  Unzips filename into the current working directory.
+    """
+    Unzips filename into the current working directory then removes .zip file.
 
-  Args:
+    Args:
     filename (str): a filepath to a target zip folder to be unzipped.
-  """
-  zip_ref = zipfile.ZipFile(filename, "r")
-  zip_ref.extractall()
-  zip_ref.close()
+    """
+    zip_ref = zipfile.ZipFile(filename, "r")
+    print("Unzipping")
+    zip_ref.extractall()
+    zip_ref.close()
+
+    os.remove(filename) # Remove source file
+    print(f"{filename} Extracted successfully")
 
 # Walk through an image classification directory and find out how many files (images)
 # are in each subdirectory.
-import os
 
 def walk_through_dir(dir_path):
   """
